@@ -1,35 +1,24 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
-import { LogoIcon, PasswordIcon, PhoneIcon, UserIcon, GoogleIcon, EmailIcon, GuestIcon } from './IconComponents';
+import { LogoIcon, PasswordIcon, PhoneIcon, UserIcon } from './IconComponents';
 import type { LoginMethod } from '../types';
 
 interface LoginPageProps {
     onLogin: (method: LoginMethod, data?: { username?: string; phone?: string; email?: string; }) => void;
 }
 
-const LoginButton: React.FC<{ icon: React.FC<any>, text: string, onClick: () => void }> = ({ icon: Icon, text, onClick }) => (
-    <button
-        onClick={onClick}
-        className="w-full flex items-center justify-center text-white font-semibold py-3 px-4 rounded-lg transition-colors duration-200 bg-slate-800/50 border border-slate-700 hover:bg-slate-700/50"
-    >
-        <Icon className="w-6 h-6 mr-3" />
-        <span>{text}</span>
-    </button>
-);
-
 export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const { t } = useTranslation();
-    const [view, setView] = useState<'options' | 'phone' | 'otp' | 'email'>('options');
+    const [view, setView] = useState<'phone' | 'otp'>('phone');
     const [username, setUsername] = useState('');
     const [phone, setPhone] = useState('');
-    const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [randomOtp, setRandomOtp] = useState('');
     const [otpError, setOtpError] = useState<string | null>(null);
     const [isTransitioning, setIsTransitioning] = useState(false);
 
-    const handleViewChange = (newView: 'options' | 'phone' | 'otp' | 'email') => {
+    const handleViewChange = (newView: 'phone' | 'otp') => {
         setIsTransitioning(true);
         setTimeout(() => {
             setView(newView);
@@ -47,13 +36,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         }
     };
     
-    const handleEmailSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (email) {
-            onLogin('email', { email });
-        }
-    };
-
     const handleOtpSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (otp === randomOtp) {
@@ -64,15 +46,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
         }
     };
     
-    const renderOptions = () => (
-        <div className="space-y-4">
-            <LoginButton icon={GoogleIcon} text={t('login.google')} onClick={() => onLogin('google')} />
-            <LoginButton icon={PhoneIcon} text={t('login.phone')} onClick={() => handleViewChange('phone')} />
-            <LoginButton icon={EmailIcon} text={t('login.email')} onClick={() => handleViewChange('email')} />
-            <LoginButton icon={GuestIcon} text={t('login.guest')} onClick={() => onLogin('guest')} />
-        </div>
-    );
-
     const renderPhoneForm = () => (
         <form onSubmit={handlePhoneSubmit} className="space-y-4">
             <div className="relative">
@@ -105,34 +78,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
             </div>
             <button type="submit" className="w-full flex items-center justify-center text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-pink-500 hover:from-cyan-600 hover:to-pink-600">
                 {t('login.phone.sendOtp')}
-            </button>
-             <button type="button" onClick={() => handleViewChange('options')} className="w-full text-center text-slate-400 hover:text-white text-sm font-semibold py-2">
-                {t('login.back')}
-            </button>
-        </form>
-    );
-
-    const renderEmailForm = () => (
-         <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <div className="relative">
-                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <EmailIcon className="h-5 w-5 text-slate-400" />
-                </div>
-                <input 
-                    type="email"
-                    id="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder={t('login.email.emailPlaceholder')}
-                    required
-                    className="w-full bg-slate-800 border border-slate-700 rounded-md pl-10 pr-4 py-3 focus:ring-cyan-500 focus:border-cyan-500 placeholder-slate-400"
-                />
-            </div>
-            <button type="submit" className="w-full flex items-center justify-center text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg bg-gradient-to-r from-cyan-500 via-fuchsia-500 to-pink-500 hover:from-cyan-600 hover:to-pink-600">
-                {t('login.email.continue')}
-            </button>
-             <button type="button" onClick={() => handleViewChange('options')} className="w-full text-center text-slate-400 hover:text-white text-sm font-semibold py-2">
-                {t('login.back')}
             </button>
         </form>
     );
@@ -171,18 +116,14 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     const renderContent = () => {
         switch(view) {
             case 'otp': return renderOtpForm();
-            case 'phone': return renderPhoneForm();
-            case 'email': return renderEmailForm();
-            case 'options': default: return renderOptions();
+            case 'phone': default: return renderPhoneForm();
         }
     }
 
     const getSubtitle = () => {
         switch(view) {
             case 'otp': return t('login.otp.title');
-            case 'phone': return t('login.phone');
-            case 'email': return t('login.email');
-            case 'options': default: return t('login.subtitle');
+            case 'phone': default: return t('login.phone');
         }
     }
 

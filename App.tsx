@@ -280,10 +280,18 @@ const App: React.FC = () => {
             </div>
         );
     }
+
+    if (!isLoggedIn) {
+        return <LoginPage onLogin={handleLogin} />;
+    }
+    
+    // User is logged in, now check for API key
     if (!apiKey) {
         return <ApiKeySetupPage onApiKeySubmit={handleApiKeySubmit} error={error} />;
     }
-    return isLoggedIn ? renderAppContent() : <LoginPage onLogin={handleLogin} />;
+
+    // User is logged in and has an API key
+    return renderAppContent();
   }
 
   return (
