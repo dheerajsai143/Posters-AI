@@ -3,10 +3,6 @@ import { GoogleGenAI } from "@google/genai";
 import type { PosterData } from '../types';
 import { LANGUAGES } from '../constants';
 
-if (!process.env.API_KEY) {
-  throw new Error("API_KEY environment variable not set");
-}
-
 // Custom error for API key issues
 export class ApiKeyError extends Error {
   constructor(message: string) {
@@ -139,13 +135,12 @@ const getSupportedAspectRatio = (ratio: PosterData['ratio']): '1:1' | '16:9' | '
 };
 
 
-export const generatePoster = async (data: PosterData): Promise<string> => {
+export const generatePoster = async (data: PosterData, apiKey: string): Promise<string> => {
   if (!data.image) {
     throw new Error("Please upload an image to generate a poster.");
   }
   
-  // FIX: Instantiate GoogleGenAI client here to use the latest API key.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   const model = 'gemini-2.5-flash-image';
   
   const fullPrompt = createPrompt(data);
@@ -178,7 +173,8 @@ export const generatePoster = async (data: PosterData): Promise<string> => {
   } catch (error) {
     console.error("Error generating poster:", error);
     if (error instanceof Error) {
-        if (error.message.includes("API key not valid") || error.message.includes("Requested entity was not found")) {
+        // More generic check for API key errors
+        if (error.message.includes("API key") || error.message.includes("not found")) {
             throw new ApiKeyError('Your API key seems to be invalid. Please select a valid key.');
         }
         throw new Error(`Failed to generate poster: ${error.message}`);

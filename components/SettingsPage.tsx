@@ -2,7 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
 import {
-    CloseIcon, LanguageIcon, InfoIcon, HelpIcon, StatsIcon, CreationsIcon, UsersIcon, UserIcon
+    CloseIcon, LanguageIcon, InfoIcon, HelpIcon, StatsIcon, CreationsIcon, UsersIcon, UserIcon,
+    PasswordIcon // Import PasswordIcon
 } from './IconComponents';
 import type { TranslationKeys } from '../translations';
 import type { Category, UserProfile } from '../types';
@@ -13,6 +14,8 @@ interface SettingsPageProps {
     sessionCreations: number;
     sessionCategoryCounts: Record<Category, number>;
     isAdmin: boolean;
+    apiKey: string | null;
+    onApiKeyClear: () => void;
 }
 
 const SettingsSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -192,11 +195,16 @@ const ActivityModal: React.FC<{
 };
 
 
-export const SettingsPage: React.FC<SettingsPageProps> = ({ onClose, userProfile, sessionCreations, sessionCategoryCounts, isAdmin }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ onClose, userProfile, sessionCreations, sessionCategoryCounts, isAdmin, apiKey, onApiKeyClear }) => {
     const { t, language, setLanguage } = useTranslation();
     const [showHelp, setShowHelp] = useState(false);
     const [showActivityModal, setShowActivityModal] = useState(false);
     
+    const maskApiKey = (key: string | null) => {
+        if (!key) return 'Not Set';
+        return `${key.substring(0, 4)}...${key.substring(key.length - 4)}`;
+    };
+
     return (
         <>
             <div 
@@ -219,6 +227,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ onClose, userProfile
                     </div>
 
                     <div className="space-y-8 max-h-[70vh] overflow-y-auto pr-2">
+                        <SettingsSection title="API Key">
+                            <SettingItem 
+                                icon={PasswordIcon} 
+                                label="Current API Key"
+                                isFirst
+                                control={<p className="text-slate-400 text-sm font-mono">{maskApiKey(apiKey)}</p>}
+                            />
+                             <SettingItem 
+                                icon={CloseIcon} 
+                                label="Change / Clear API Key"
+                                action={onApiKeyClear}
+                                isLast
+                            />
+                        </SettingsSection>
+
                         <SettingsSection title={t('settings.general')}>
                             <SettingItem 
                                 icon={LanguageIcon} 

@@ -12,57 +12,12 @@ import { LoginPage } from './components/LoginPage';
 import { ProfilePage } from './components/ProfilePage';
 import { SettingsPage } from './components/SettingsPage';
 import { LogoIcon } from './components/IconComponents';
-
-// Add type declaration for the aistudio object on the window
-// FIX: Define the AIStudio interface and use it in the global Window declaration to resolve the type conflict.
-interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-}
-
-declare global {
-    interface Window {
-        aistudio?: AIStudio;
-    }
-}
-
-const ApiKeySelectionPage: React.FC<{ onKeySelected: () => void }> = ({ onKeySelected }) => {
-    const handleSelectKey = async () => {
-        if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
-            await window.aistudio.openSelectKey();
-            // As per guidelines, assume success and proceed to the app.
-            onKeySelected();
-        }
-    };
-
-    return (
-        <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
-            <div className="bg-slate-900/60 backdrop-blur-xl rounded-2xl p-8 md:p-12 shadow-2xl border border-slate-800 max-w-lg w-full">
-                <LogoIcon className="w-16 h-16 text-cyan-400 mx-auto mb-6" />
-                <h1 className="text-3xl font-bold text-white mb-4">Connect to Google AI</h1>
-                <p className="text-slate-400 mb-6">
-                    This app requires a Google AI API key to generate posters. Please select a key from a project with billing enabled.
-                </p>
-                <button 
-                    onClick={handleSelectKey}
-                    className="w-full text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-lg bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600"
-                >
-                    Select API Key
-                </button>
-                <p className="text-xs text-slate-500 mt-4">
-                    For more information on billing, visit{' '}
-                    <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:underline">
-                        ai.google.dev/gemini-api/docs/billing
-                    </a>.
-                </p>
-            </div>
-        </div>
-    );
-};
+import { ApiKeySetupPage } from './components/ApiKeySetupPage';
 
 const App: React.FC = () => {
   const { t, language } = useTranslation();
-  const [apiKeyStatus, setApiKeyStatus] = useState<'checking' | 'needed' | 'ready'>('checking');
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isKeyLoading, setIsKeyLoading] = useState<boolean>(true);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
@@ -105,21 +60,22 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const checkApiKey = async () => {
-        if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
-            const hasKey = await window.aistudio.hasSelectedApiKey();
-            if (hasKey) {
-                setApiKeyStatus('ready');
-            } else {
-                setApiKeyStatus('needed');
-            }
-        } else {
-            // If aistudio is not on window, assume key is in environment and proceed
-            setApiKeyStatus('ready');
-        }
-    };
-    checkApiKey();
+    const savedKey = localStorage.getItem('gemini_api_key');
+    setApiKey(savedKey);
+    setIsKeyLoading(false);
   }, []);
+
+  const handleApiKeySubmit = (key: string) => {
+    localStorage.setItem('gemini_api_key', key);
+    setApiKey(key);
+    setError(null); // Clear previous errors
+  };
+
+  const handleApiKeyClear = () => {
+    localStorage.removeItem('gemini_api_key');
+    setApiKey(null);
+    setIsSettingsOpen(false); // Close settings modal after clearing
+  };
 
   const updatePosterData = useCallback(<K extends keyof PosterData>(key: K, value: PosterData[K]) => {
     setPosterData(prev => ({ ...prev, [key]: value }));
@@ -257,12 +213,17 @@ const App: React.FC = () => {
         setError(t('error.uploadImage'));
         return;
     }
+    if (!apiKey) {
+      setError("API Key is missing. Please set it in the settings.");
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
     setGeneratedImageUrl(null);
 
     try {
-      const imageUrl = await generatePoster(posterData);
+      const imageUrl = await generatePoster(posterData, apiKey);
       setGeneratedImageUrl(imageUrl);
       setSessionCreations(prev => prev + 1);
       setSessionCategoryCounts(prev => ({
@@ -271,8 +232,8 @@ const App: React.FC = () => {
       }));
     } catch (err) {
       if (err instanceof ApiKeyError) {
-        setApiKeyStatus('needed');
-        setError("Your API key is invalid or missing. Please select a new one to continue.");
+        handleApiKeyClear();
+        setError("Your API key is invalid. Please enter a valid key to continue.");
       } else {
         setError(err instanceof Error ? err.message : 'An unknown error occurred.');
       }
@@ -280,7 +241,7 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [posterData, t]);
+  }, [posterData, t, apiKey]);
   
   const renderAppContent = () => {
     if (!selectedCategory) {
@@ -312,22 +273,22 @@ const App: React.FC = () => {
   }
 
   const renderPage = () => {
-    if (apiKeyStatus === 'checking') {
+    if (isKeyLoading) {
         return (
             <div className="flex-grow flex items-center justify-center">
                 <LogoIcon className="w-24 h-24 text-cyan-400 animate-pulse" />
             </div>
         );
     }
-    if (apiKeyStatus === 'needed') {
-        return <ApiKeySelectionPage onKeySelected={() => setApiKeyStatus('ready')} />;
+    if (!apiKey) {
+        return <ApiKeySetupPage onApiKeySubmit={handleApiKeySubmit} error={error} />;
     }
     return isLoggedIn ? renderAppContent() : <LoginPage onLogin={handleLogin} />;
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-950 to-indigo-950 text-slate-200 font-sans">
-      {isLoggedIn && apiKeyStatus === 'ready' && <Header onProfileClick={() => setIsProfileOpen(true)} profilePic={userProfile.profilePic} />}
+      {isLoggedIn && apiKey && <Header onProfileClick={() => setIsProfileOpen(true)} profilePic={userProfile.profilePic} />}
       <main className="flex-grow container mx-auto p-4 md:p-8 flex flex-col">
         {renderPage()}
         {isProfileOpen && (
@@ -346,6 +307,8 @@ const App: React.FC = () => {
                 sessionCreations={sessionCreations}
                 sessionCategoryCounts={sessionCategoryCounts}
                 isAdmin={isAdmin}
+                apiKey={apiKey}
+                onApiKeyClear={handleApiKeyClear}
             />
         )}
       </main>
