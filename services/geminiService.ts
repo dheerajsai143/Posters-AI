@@ -6,7 +6,14 @@ import { LANGUAGES } from '../constants';
 if (!process.env.API_KEY) {
   throw new Error("API_KEY environment variable not set");
 }
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+// Custom error for API key issues
+export class ApiKeyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ApiKeyError';
+  }
+}
 
 function fileToGenerativePart(base64: string, mimeType: string) {
   return {
@@ -137,6 +144,8 @@ export const generatePoster = async (data: PosterData): Promise<string> => {
     throw new Error("Please upload an image to generate a poster.");
   }
   
+  // FIX: Instantiate GoogleGenAI client here to use the latest API key.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const model = 'gemini-2.5-flash-image';
   
   const fullPrompt = createPrompt(data);
@@ -169,6 +178,9 @@ export const generatePoster = async (data: PosterData): Promise<string> => {
   } catch (error) {
     console.error("Error generating poster:", error);
     if (error instanceof Error) {
+        if (error.message.includes("API key not valid") || error.message.includes("Requested entity was not found")) {
+            throw new ApiKeyError('Your API key seems to be invalid. Please select a valid key.');
+        }
         throw new Error(`Failed to generate poster: ${error.message}`);
     }
     throw new Error("An unknown error occurred while generating the poster.");
